@@ -325,6 +325,14 @@ function makeDb({ makeDbConnect, getTableName }) {
       throw new Error('Invalid KeyConditionExpression operator');
     }
 
+    // build key condition expression
+    // input itemInfo must have PK and SK (if exists)
+    // operator is a valid DynamoDB operator
+    // ex: operator = 'begins_with' or operator = '='
+
+    // The key condition expression is the condition that must be met on the primary key.
+    // The attribute names in the expression must be preceded by a hash (#) character.
+    // The attribute values in the expression must be preceded by a colon (:) character.
     let keyCond = '#PK = :PK ';
     if (itemInfo.SK) {
       if (operator === 'begins_with') {
@@ -333,25 +341,40 @@ function makeDb({ makeDbConnect, getTableName }) {
         keyCond += `and #SK ${operator} :SK`;
       }
     }
+
+    // The filter expression determines which items we want to return in our query.
+    // In this case, we want to return all items with no status attribute or
+    // with the specified status.
     let filterExp = `(attribute_not_exists (#status) or #status = :status)`;
+    // If a status reason was provided, we also want to return only items with the specified
+    // status reason.
     if (statusReason) {
       filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason';
     }
+
+    // Create the input object for the DynamoDB query operation
     const input = {
+      // Specify the name of the table to query
       TableName: getTableName(),
+      // Specify the maximum number of items to return
       Limit: limit,
+      // Specify the condition that the primary key must meet
       KeyConditionExpression: keyCond,
+      // If validOnly is true, add a condition that the status attribute must be '1'
       ...(validOnly && {
         FilterExpression: filterExp,
       }),
 
+      // Specify the attributes to return
       Select: 'ALL_ATTRIBUTES',
+      // Specify the names of the attributes to return
       ExpressionAttributeNames: {
         '#PK': 'PK',
         ...(itemInfo.SK && { '#SK': 'SK' }),
         ...(validOnly && { '#status': 'status' }),
         ...(statusReason && { '#statusReason': 'statusReason' }),
       },
+      // Specify the values of the attributes to return
       ExpressionAttributeValues: {
         ':PK': {
           ...itemInfo.PK,
@@ -366,6 +389,7 @@ function makeDb({ makeDbConnect, getTableName }) {
         }),
         ...(statusReason && { ':statusReason': { S: statusReason } }),
       },
+      // Specify the return value
       ReturnConsumedCapacity: 'TOTAL',
     };
 
