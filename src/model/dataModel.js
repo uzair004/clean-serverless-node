@@ -28,10 +28,16 @@ const UserDM = {
   password: 'password',
 
   makeType: () => 'USER',
+
   makePK: (userId) => `U#${userId}`,
   makeSK: () => `A`,
   splitPK: (_PK) => ({ userId: _PK.split('#')[1] }),
   splitSK: () => undefined,
+
+  makePK1: (email) => `UE#${email}`,
+  makeSK1: () => `A`,
+  splitPK1: (_PK) => ({ email: _PK.split('#')[1] }),
+  splitSK1: () => undefined,
 };
 AllDM[UserDM.makeType()] = UserDM;
 Prefix[UserDM.makeType()] = 'U';
