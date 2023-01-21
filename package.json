@@ -21,18 +21,24 @@
     "aws-sdk": "^2.1132.0",
     "aws-sdk-mock": "^5.7.0",
     "dotenv": "^16.0.1",
-    "eslint": "^8.15.0",
+    "eslint": "^8.20.0",
     "faker": "^5.5.3",
     "jest": "^27.0.4",
     "jest-html-reporter": "^3.5.0",
     "lodash": "^4.17.21",
     "prettier": "^2.6.2",
+    "serverless-deployment-bucket": "^1.6.0",
+    "serverless-domain-manager": "^6.0.3",
     "serverless-dynamodb-local": "^0.2.40",
     "serverless-export-env": "^2.1.0",
-    "serverless-offline": "^8.7.0",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-middleware": "^3.0.0",
+    "serverless-offline": "^8.8.1",
     "serverless-pseudo-parameters": "^2.5.0"
   },
   "dependencies": {
-    "jsonwebtoken": "^8.5.1"
+    "jsonwebtoken": "^8.5.1",
+    "serverless-plugin-scripts": "^1.0.2",
+    "ulid": "^2.3.0"
   }
 }
