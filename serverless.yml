@@ -1,0 +1,76 @@
+service: ${file(service.yml):service}
+app: ${file(service.yml):app}
+org: ${file(service.yml):org}
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  httpApi:
+    cors: true
+  # memorySize: 512
+  # versionFunctions: false
+
+  # Serverless defaults to "endpointType: edge". Use below to make it regional.
+  #  endpointType: regional
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}
+        - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}/index/${self:custom.dynamodb.MainTableGSI1}
+
+  environment:
+    IS_OFFLINE: ${opt:IS_OFFLINE, false}
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    DYNAMODB_MAIN_TABLE: ${self:custom.dynamodb.MainTable}
+
+package:
+  patterns:
+    - '!.dynamodb/**'
+    - '!./templates/**'
+    - '!./.temp/**'
+    - '!./__test__/**'
+    - '!./.vscode/**'
+    - '!./**/*.spec.js'
+functions:
+  helloWorld:
+    handler: src/controllers/index.helloWorldC
+    events:
+      - httpApi:
+          method: any
+          path: /v1/hello-world
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-pseudo-parameters
+  - '@serverless/safeguards-plugin'
+  - serverless-export-env
+custom:
+  dynamodb:
+    MainTable: ${self:service}-${self:provider.stage}
+    MainTableGSI1: GSI1
+    stages:
+      - dev
+      - pre-prod
+      - prod
+    start:
+      dbPath: ./.dynamodb/data/
+      migrate: true
+
+  export-env:
+    filename: .env
+    overwrite: true
