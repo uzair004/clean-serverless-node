@@ -24,7 +24,9 @@ function makeDb({ makeDbConnect, getTableName }) {
   }
 
   async function updateItem({ itemInfo, returnValues = true }) {
+    // 1. Connect to the DynamoDB table
     const db = makeDbConnect();
+    // 2. Update the item in the table
     const result = await db
       .updateItem(
         createUpdateItemInput({
@@ -33,7 +35,7 @@ function makeDb({ makeDbConnect, getTableName }) {
         })
       )
       .promise();
-
+    // 3. Return data from the updated item
     if (returnValues) {
       return splitKeys(
         itemToObject({
@@ -44,12 +46,20 @@ function makeDb({ makeDbConnect, getTableName }) {
     return removeMetrics({ result, fnName: 'updateItem', itemInfo });
   }
 
+  // Return a single item from the database
+  // itemInfo: The unique identifier for the item
+  //   to retrieve from the database
+  // Return: The item from the database
   async function getItem({ itemInfo }) {
+    // Connect to the database
     const db = makeDbConnect();
+
+    // Retrieve the item from the database
     const result = await db
       .getItem(createGetItemInput(objectToItem({ itemInfo })))
       .promise();
 
+    // Return the item from the database
     return splitKeys(
       itemToObject({
         item: removeMetrics({ result, fnName: 'getItem', itemInfo }),
