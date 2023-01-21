@@ -361,11 +361,17 @@ function makeDb({ makeDbConnect, getTableName }) {
     return input;
   }
 
+  // Creates a DynamoDB input object for a getItem operation
+  // The 'item' parameter must be an object with 'PK' and 'SK' properties
+  // The 'PK' and 'SK' properties must be objects with 'S' properties
+  // Returns the input object
   function createGetItemInput(item) {
+    // Check that the item has the required 'PK' and 'SK' properties
     if (!item.PK.S || !item.SK.S) {
       console.error('ItemInfo:', item);
       throw new Error('Missing or invalid key');
     }
+    // Create a 'Key' property with the 'PK' and 'SK' values
     const input = {
       TableName: getTableName(),
       Key: {
