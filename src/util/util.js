@@ -109,7 +109,6 @@ const isValidPhone = (phone) => {
   return String(phone).match(/^(03(0|1|2|3|4)\d{8})$/);
 };
 
-
 const obfuscateEmail = (email) => {
   const regex = /(\w)(.+?)(@)(\w)(.*?)(.\w+$)/gm;
   const subst = `$1***$3$4***$6`; // substitute with
@@ -214,7 +213,6 @@ function minus(a, b) {
   return new Set(Array.from(a).filter((x) => !b.has(x)));
 }
 
-
 module.exports = {
   getApiInfo,
   getRemoteIp,
@@ -222,8 +220,6 @@ module.exports = {
   makeTs,
   isValueTrue,
   titleCase,
-  makeMobileNo,
-  makeCNIC,
   getAuthorizationToken,
   unique,
   getPath,
