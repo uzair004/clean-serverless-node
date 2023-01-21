@@ -7,81 +7,28 @@ const capacityLogLimit = 5;
 const { AllDM: DM } = require('../model/dataModel');
 
 function makeDb({ makeDbConnect, getTableName }) {
-  //, createPutItemInput }) {
   return Object.freeze({
     putItem,
     getItem,
     updateItem,
     query,
     queryGSI,
-    deleteItem,
-    increment,
   });
 
-  async function query({
-    itemInfo,
-    mapping,
-    validOnly = true,
-    operator = '>=',
-    statusReason,
-  }) {
+  async function putItem({ itemInfo }) {
     const db = makeDbConnect();
     const result = await db
-      .query(
-        createQueryInput({
-          itemInfo: objectToItem({ itemInfo, mapping: mapping.toItem() }),
-          operator,
-          validOnly,
-          statusReason,
-        })
-      )
+      .putItem(createPutItemInput(objectToItem({ itemInfo })))
       .promise();
-
-    return splitKeysArray(
-      itemToObjectArray({
-        item: removeMetrics({ result, fnName: 'query', itemInfo }),
-        mapping: mapping.toObject(),
-      })
-    );
+    return removeMetrics({ result, fnName: 'putItem', itemInfo });
   }
 
-  async function queryGSI({
-    itemInfo,
-    mapping,
-    validOnly = true,
-    statusReason,
-    status,
-    limit = 10,
-    operator = '>=',
-  }) {
-    const db = makeDbConnect();
-    const result = await db
-      .query(
-        createQueryGSIInput({
-          itemInfo: objectToItem({ itemInfo, mapping: mapping.toItem() }),
-          operator: operator,
-          validOnly,
-          statusReason,
-          status,
-          limit,
-        })
-      )
-      .promise();
-
-    return splitKeysArray(
-      itemToObjectArray({
-        item: removeMetrics({ result, fnName: 'queryGSI', itemInfo }),
-        mapping: mapping.toObject(),
-      })
-    );
-  }
-
-  async function updateItem({ itemInfo, mapping, returnValues = true }) {
+  async function updateItem({ itemInfo, returnValues = true }) {
     const db = makeDbConnect();
     const result = await db
       .updateItem(
         createUpdateItemInput({
-          item: objectToItem({ itemInfo, mapping: mapping.toItem() }),
+          item: objectToItem({ itemInfo }),
           returnValues,
         })
       )
@@ -91,55 +38,10 @@ function makeDb({ makeDbConnect, getTableName }) {
       return splitKeys(
         itemToObject({
           item: removeMetrics({ result, fnName: 'updateItem', itemInfo }),
-          mapping: mapping.toObject(),
         })
       );
     }
-    return removeMetrics({ result, fnName: 'putItem', itemInfo });
-  }
-
-  async function increment({ itemInfo, mapping }) {
-    const { increments, ...requestInfo } = itemInfo;
-    const db = makeDbConnect();
-    const result = await db
-      .updateItem(
-        createUpdateItemInput({
-          increments,
-          item: objectToItem({
-            itemInfo: {
-              ...requestInfo,
-            },
-            mapping: mapping.toItem(),
-          }),
-        })
-      )
-      .promise();
-
-    return removeMetrics({ result, fnName: 'updateUsage', itemInfo });
-  }
-
-  async function deleteItem({ itemInfo, mapping }) {
-    const db = makeDbConnect();
-    const response = await db
-      .deleteItem(
-        createDeleteItemInput({
-          item: objectToItem({ itemInfo, mapping: mapping.toItem() }),
-        })
-      )
-      .promise();
-    return response;
-  }
-
-  async function putItem({ itemInfo, mapping }) {
-    const db = makeDbConnect();
-    const result = await db
-      .putItem(
-        createPutItemInput(
-          objectToItem({ itemInfo, mapping: mapping.toItem() })
-        )
-      )
-      .promise();
-    return removeMetrics({ result, fnName: 'putItem', itemInfo });
+    return removeMetrics({ result, fnName: 'updateItem', itemInfo });
   }
 
   async function getItem({ itemInfo }) {
@@ -147,12 +49,78 @@ function makeDb({ makeDbConnect, getTableName }) {
     const result = await db
       .getItem(createGetItemInput(objectToItem({ itemInfo })))
       .promise();
+
     return splitKeys(
       itemToObject({
         item: removeMetrics({ result, fnName: 'getItem', itemInfo }),
       })
     );
   }
+
+  async function query({
+    itemInfo,
+    limit = 1,
+    operator = '>=',
+    statusReason,
+    validOnly = false,
+  }) {
+    const db = makeDbConnect();
+    const result = await db
+      .query(
+        createQueryInput({
+          itemInfo: objectToItem({ itemInfo }),
+          operator,
+          limit,
+          statusReason,
+          validOnly,
+        })
+      )
+      .promise();
+
+    return splitKeysArray(
+      itemToObjectArray({
+        item: removeMetrics({ result, fnName: 'query', itemInfo }),
+      })
+    );
+  }
+
+  async function queryGSI({
+    itemInfo,
+    limit = 0,
+    operator = '>=',
+    statusReason,
+    validOnly = false,
+    status,
+  }) {
+    const db = makeDbConnect();
+    const result = await db
+      .query(
+        createQueryGSIInput({
+          itemInfo: objectToItem({ itemInfo }),
+          operator,
+          limit,
+          statusReason,
+          validOnly,
+          status,
+        })
+      )
+      .promise();
+
+    return splitKeysArray(
+      itemToObjectArray({
+        item: removeMetrics({ result, fnName: 'queryGSI', itemInfo }),
+      })
+    );
+  }
+
+  function itemToObjectArray({ item }) {
+    const response = [];
+    item.forEach((i) => {
+      response.push(itemToObject({ item: i }));
+    });
+    return response;
+  }
+
   function objectToItem({ itemInfo: obj }) {
     const response = {};
     Object.keys(obj).forEach((element) => {
@@ -246,13 +214,6 @@ function makeDb({ makeDbConnect, getTableName }) {
     });
     return response;
   }
-  function itemToObjectArray({ item }) {
-    const response = [];
-    item.forEach((i) => {
-      response.push(itemToObject({ item: i }));
-    });
-    return response;
-  }
 
   function itemToObject({ item }) {
     const validDataTypes = ['S', 'N', 'BOOL', 'L', 'M'];
@@ -298,14 +259,13 @@ function makeDb({ makeDbConnect, getTableName }) {
   }
 
   function createPutItemInput(item, allowOverwrite = false) {
-    // ".S" hardcoded for now. Can spread operator be used to remove? I think NO!
     if (!item.PK.S || !item.SK.S) {
       console.error(item);
       throw new Error('Missing or invalid key');
     }
     const input = {
       TableName: getTableName(),
-      Item: item, // objectToItem(itemInfo),
+      Item: item,
       ...(allowOverwrite && {
         ConditionExpression: 'attribute_not_exists(PK)',
       }),
@@ -313,8 +273,73 @@ function makeDb({ makeDbConnect, getTableName }) {
     };
     return input;
   }
+
+  function createQueryInput({
+    itemInfo,
+    operator = '=',
+    validOnly = true,
+    statusReason,
+    limit,
+  }) {
+    if (!itemInfo.PK) {
+      console.error(itemInfo);
+      throw new Error('Missing or invalid key');
+    }
+    if (
+      !['=', '>', '>=', '<', '<=', 'begins_with', 'between'].includes(operator)
+    ) {
+      console.error(itemInfo);
+      throw new Error('Invalid KeyConditionExpression operator');
+    }
+
+    let keyCond = '#PK = :PK ';
+    if (itemInfo.SK) {
+      if (operator === 'begins_with') {
+        keyCond += 'and begins_with(#SK,:SK)';
+      } else {
+        keyCond += `and #SK ${operator} :SK`;
+      }
+    }
+    let filterExp = `(attribute_not_exists (#status) or #status = :status)`;
+    if (statusReason) {
+      filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason';
+    }
+    const input = {
+      TableName: getTableName(),
+      Limit: limit,
+      KeyConditionExpression: keyCond,
+      ...(validOnly && {
+        FilterExpression: filterExp,
+      }),
+
+      Select: 'ALL_ATTRIBUTES',
+      ExpressionAttributeNames: {
+        '#PK': 'PK',
+        ...(itemInfo.SK && { '#SK': 'SK' }),
+        ...(validOnly && { '#status': 'status' }),
+        ...(statusReason && { '#statusReason': 'statusReason' }),
+      },
+      ExpressionAttributeValues: {
+        ':PK': {
+          ...itemInfo.PK,
+        },
+        ...(itemInfo.SK && {
+          ':SK': {
+            ...itemInfo.SK,
+          },
+        }),
+        ...(validOnly && {
+          ':status': { S: '1' },
+        }),
+        ...(statusReason && { ':statusReason': { S: statusReason } }),
+      },
+      ReturnConsumedCapacity: 'TOTAL',
+    };
+
+    return input;
+  }
+
   function createGetItemInput(item) {
-    //  Can spread operator be used to remove hardcoded S ?
     if (!item.PK.S || !item.SK.S) {
       console.error('ItemInfo:', item);
       throw new Error('Missing or invalid key');
@@ -322,21 +347,20 @@ function makeDb({ makeDbConnect, getTableName }) {
     const input = {
       TableName: getTableName(),
       Key: {
-        PK: { ...item.PK }, //  Shallow copy ok for PK and SK. But not for lists, etc.
+        PK: { ...item.PK },
         SK: { ...item.SK },
       },
-      //    ProjectionExpression: '',  // No expression => All columns,
       ReturnConsumedCapacity: 'TOTAL',
     };
     return input;
   }
+
   function createUpdateItemInput({
     item: { PK: _PK, SK: _SK, ...itemInput },
     returnValues,
     increments,
   }) {
     if (!_PK || !_SK) {
-      console.error('ItemInfo:', itemInput);
       throw new Error('Missing or invalid key');
     }
     let exp = 'SET',
@@ -361,6 +385,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       });
     Object.keys(itemInput).forEach((element) => {
       exp = exp + (i++ ? ',' : '') + ' #' + element + '=:' + element;
+
       values[`:${element}`] = { ...itemInput[element] };
       names[`#${element}`] = element;
     });
@@ -374,93 +399,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       ExpressionAttributeValues: values,
       ExpressionAttributeNames: names,
       ReturnConsumedCapacity: 'TOTAL',
-      ...(returnValues && { ReturnValues: 'ALL_NEW' }), //   NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
-    };
-    return input;
-  }
-  function createDeleteItemInput({ item: { PK: _PK, SK: _SK } }) {
-    if (!_PK || !_SK) {
-      console.error('PK: ', _PK, 'SK: ', _SK);
-      throw new Error('Missing or invalid key');
-    }
-
-    const input = {
-      TableName: getTableName(),
-      Key: {
-        PK: { ..._PK },
-        SK: { ..._SK },
-      },
-    };
-    return input;
-  }
-
-  /**TODO: WIP. To be completed to support KeyConditions and other conditions */
-  function createQueryInput({
-    itemInfo,
-    operator = '=',
-    validOnly = true,
-    statusReason,
-  }) {
-    //  This can't work for all cases. Handling required cases only for now.
-    //  Obtain KeyConditionExpression and other info directly as input.
-    if (!itemInfo.PK) {
-      console.error(itemInfo);
-      throw new Error('Missing or invalid key');
-    }
-    if (
-      !['=', '>', '>=', '<', '<=', 'begins_with', 'between'].includes(operator)
-    ) {
-      console.error(itemInfo);
-      throw new Error('Invalid KeyConditionExpression operator');
-    }
-
-    let keyCond = '#PK = :PK ';
-    if (itemInfo.SK) {
-      if (operator === 'begins_with') {
-        keyCond += 'and begins_with(#SK,:SK)';
-      } else {
-        keyCond += `and #SK ${operator} :SK`;
-      }
-    }
-    // TODO: Support for ${operator} values "begins_with" and "between" to be implemented
-    let filterExp = `(attribute_not_exists (#expiryTs) or #expiryTs > :expiryTs) and (attribute_not_exists (#status) or #status = :status)`;
-    if (statusReason) {
-      filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason'; // and #createTs > :createTs
-    }
-    const input = {
-      TableName: getTableName(),
-      // ScanIndexForward: false,
-      // Limit: 2,
-      // IndexName: 'GSI1',
-      KeyConditionExpression: keyCond,
-      // '#PK = :PK ' + (itemInfo.SK ? `and #SK ${operator} :SK` : ''),
-
-      ...(validOnly && {
-        // FilterExpression: `attribute_not_exists (#expiryTs) or #expiryTs > :expiryTs `,
-        FilterExpression: filterExp,
-      }),
-
-      Select: 'ALL_ATTRIBUTES', //  ALL_ATTRIBUTES | ALL_PROJECTED_ATTRIBUTES | SPECIFIC_ATTRIBUTES | COUNT
-      ExpressionAttributeNames: {
-        '#PK': 'PK',
-        ...(itemInfo.SK && { '#SK': 'SK' }),
-        ...(validOnly && { '#expiryTs': 'expiryTs', '#status': 'status' }),
-        ...(statusReason && { '#statusReason': 'statusReason' }),
-      },
-      ExpressionAttributeValues: {
-        ':PK': {
-          ...itemInfo.PK, //  Automatically fetch the datatype
-        },
-        ':SK': {
-          ...itemInfo.SK,
-        },
-        ...(validOnly && {
-          ':expiryTs': { S: new Date().toISOString() },
-          ':status': { S: '1' },
-        }),
-        ...(statusReason && { ':statusReason': { S: statusReason } }),
-      },
-      ReturnConsumedCapacity: 'TOTAL',
+      ...(returnValues && { ReturnValues: 'ALL_NEW' }),
     };
     return input;
   }
@@ -469,14 +408,11 @@ function makeDb({ makeDbConnect, getTableName }) {
     itemInfo,
     operator = '=',
     validOnly = true,
-    statusReason = 'pending', // Hardcoded for now for findPendingRequest()
+    statusReason,
+    status,
+    limit,
     index = '1',
-    scanIndexForward = false,
-    limit = 10,
-    status = '1',
   }) {
-    //  This can't work for all cases. Handling required cases only for now.
-    //  Obtain KeyConditionExpression and other info directly as input.
     const _PK = 'PK' + index,
       _SK = 'SK' + index,
       _PKn = '#' + _PK,
@@ -486,30 +422,17 @@ function makeDb({ makeDbConnect, getTableName }) {
       indexName = 'GSI' + index;
 
     if (!['1', '2'].includes(index)) {
-      console.error(itemInfo);
       throw new Error(`Index can only be '1' or '2'`);
     }
     if (!itemInfo[_PK] || !itemInfo[_SK]) {
-      console.error(itemInfo);
       throw new Error(
         `${indexName} requires attributes ({_PK${index}}, {_SK${index}}).`
       );
     }
-    if (
-      !['=', '>', '>=', '<', '<=', 'begins_with', 'between'].includes(operator)
-    ) {
-      console.error(itemInfo);
+    if (!['=', '>', '>=', '<', '<=', 'begins_with'].includes(operator)) {
       throw new Error('Invalid KeyConditionExpression operator');
     }
 
-    // let keyCond = `${_PKn} = :${_PKv} `;
-    // if (itemInfo.SK) {
-    //   if (operator === `begins_with`) {
-    //     keyCond += `and begins_with(${_SKn},:${_SKv})`;
-    //   } else {
-    //     keyCond += `and ${_SKn},${_SKv})`;
-    //   }
-    // }
     const attributeNames = {},
       attributeValues = {};
 
@@ -525,47 +448,48 @@ function makeDb({ makeDbConnect, getTableName }) {
       (filterExp ? ' and ' : '') +
       '(attribute_not_exists (#status) or #status = :status)';
     if (statusReason) {
-      filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason'; // and #createTs > :createTs
+      filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason';
     }
-    // TODO: Support for ${operator} values "begins_with" and "between" to be implemented
+
+    let keyCond = '#PK1 = :PK1 ';
+    if (itemInfo.SK1) {
+      if (operator === 'begins_with') {
+        keyCond += 'and begins_with(#SK1,:SK1)';
+      } else {
+        keyCond += `and #SK1 ${operator} :SK1`;
+      }
+    }
+
     const input = {
       TableName: getTableName(),
-      ScanIndexForward: scanIndexForward,
       ...(limit > 0 && { Limit: limit }),
       IndexName: indexName,
-      KeyConditionExpression:
-        `${_PKn} = ${_PKv} ` +
-        (itemInfo[_SK] ? `and ${_SKn} ${operator} ${_SKv}` : ''),
+      KeyConditionExpression: keyCond,
 
       ...(validOnly && {
         ...(filterExp && { FilterExpression: filterExp }),
       }),
 
-      Select: 'ALL_ATTRIBUTES', //  ALL_ATTRIBUTES | ALL_PROJECTED_ATTRIBUTES | SPECIFIC_ATTRIBUTES | COUNT
+      Select: 'ALL_ATTRIBUTES',
       ExpressionAttributeNames: {
         ...attributeNames,
         ...(validOnly && {
           '#expiryTs': 'expiryTs',
           '#status': 'status',
           '#statusReason': 'statusReason',
-          // #SKn is the same as '#startTs'. So this is redundant. May be required for fetching data
-          // for entities later.
-          // '#createTs' : 'createTs'
         }),
       },
       ExpressionAttributeValues: {
-        ...attributeValues, //  Use deep copy if this causes any issues
+        ...attributeValues,
         ...(validOnly && {
           ':expiryTs': { S: new Date().toISOString() },
           ':status': { S: status },
           ':statusReason': { S: statusReason },
-          // ':createTs': {
-          //   S: new Date(new Date() - 2 * 60 * 1000).toISOString(),
-          // }, // Requests created in last 2 minutes
         }),
       },
       ReturnConsumedCapacity: 'TOTAL',
     };
+
     return input;
   }
 
@@ -589,23 +513,19 @@ function makeDb({ makeDbConnect, getTableName }) {
     console.warn(
       `Consumed Capacity [${fnName}]:= ${JSON.stringify(consumedCapacity)}`
     );
-    console.warn(
-      'Item Collection Metrics: ',
-      itemCollMetrics,
-
-      'Count',
-      count,
-
-      'ScannedCount',
-      scannedCount,
-
-      'LastEvaluatedKey',
-      lastEvaluatedKey
-    );
+    console.warn('Additional Metrics', {
+      ...(itemCollMetrics && { itemCollMetrics }),
+      ...(count && { count }),
+      ...(scannedCount && { scannedCount }),
+      ...(lastEvaluatedKey && { lastEvaluatedKey }),
+    });
     return item || items || attributes || remaining;
   }
 
-  // TODO: Move splitKeys and other "model" related functions to the model module.
+  function splitKeysArray(item) {
+    return item.map((i) => splitKeys(i));
+  }
+
   function splitKeys(item) {
     if (item.length === 0) {
       return item;
@@ -629,13 +549,9 @@ function makeDb({ makeDbConnect, getTableName }) {
       !_SK1 ? {} : DM[_type].splitSK1(_SK1),
       !_PK2 ? {} : DM[_type].splitPK2(_PK2),
       !_SK2 ? {} : DM[_type].splitSK2(_SK2),
-      { type: _type },
+      _type ? { type: _type } : {},
       !resultInfo ? {} : resultInfo
     );
-  }
-
-  function splitKeysArray(item) {
-    return item.map((i) => splitKeys(i));
   }
 }
 
