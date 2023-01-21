@@ -382,9 +382,12 @@ function makeDb({ makeDbConnect, getTableName }) {
     returnValues,
     increments,
   }) {
+    // Validate that the input item has a PK and SK
     if (!_PK || !_SK) {
       throw new Error('Missing or invalid key');
     }
+
+    // Create the UpdateExpression
     let exp = 'SET',
       i = 0;
     const values = {},
@@ -411,6 +414,8 @@ function makeDb({ makeDbConnect, getTableName }) {
       values[`:${element}`] = { ...itemInput[element] };
       names[`#${element}`] = element;
     });
+
+    // Create the input object for the DynamoDB updateItem command
     const input = {
       TableName: getTableName(),
       Key: {
