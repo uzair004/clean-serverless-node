@@ -8,7 +8,8 @@
     "pretestall": "serverless export-env",
     "testall": "npx jest ./src/ --coverage --runInBand --detectOpenHandles --forceExit",
     "prettier": "npx prettier -c .",
-    "lint": "npx eslint ./"
+    "lint": "npx eslint ./",
+    "user-seeders": "IS_OFFLINE=$npm_config_offline DYNAMODB_MAIN_TABLE=$npm_config_table node seeders/addUsers.js"
   },
   "jest": {
     "collectCoverage": true,
