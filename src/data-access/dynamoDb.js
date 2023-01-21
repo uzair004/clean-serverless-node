@@ -16,10 +16,19 @@ function makeDb({ makeDbConnect, getTableName }) {
   });
 
   async function putItem({ itemInfo }) {
+    // Connect to the database.
     const db = makeDbConnect();
-    const result = await db
-      .putItem(createPutItemInput(objectToItem({ itemInfo })))
-      .promise();
+
+    // Prepare the item info for DynamoDB.
+    const item = objectToItem({ itemInfo });
+
+    // Create the input object for DynamoDB.
+    const input = createPutItemInput({ item });
+
+    // Put the item in the database.
+    const result = await db.putItem(input).promise();
+
+    // Return the result and remove metrics.
     return removeMetrics({ result, fnName: 'putItem', itemInfo });
   }
 
