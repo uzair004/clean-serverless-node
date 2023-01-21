@@ -515,7 +515,14 @@ function makeDb({ makeDbConnect, getTableName }) {
     return input;
   }
 
+  /**
+   * Remove metrics from a DynamoDB result
+   * @param {object} result - The result from a DynamoDB function
+   * @param {string} fnName - The name of the function
+   * @returns {object} - The original result without metrics
+   */
   function removeMetrics({ result, fnName }) {
+    // Extract metrics from the result object
     const {
       Count: count,
       ScannedCount: scannedCount,
@@ -527,11 +534,13 @@ function makeDb({ makeDbConnect, getTableName }) {
       Items: items,
       ...remaining
     } = result;
+    // Log consumed capacity if it is above the limit
     if (consumedCapacity.CapacityUnits > capacityLogLimit) {
       console.warn(
         `Consumed Capacity [${fnName}]:= ${JSON.stringify(consumedCapacity)}`
       );
     }
+    // Log additional metrics
     console.warn(
       `Consumed Capacity [${fnName}]:= ${JSON.stringify(consumedCapacity)}`
     );
@@ -541,6 +550,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       ...(scannedCount && { scannedCount }),
       ...(lastEvaluatedKey && { lastEvaluatedKey }),
     });
+    // Return the original result without metrics
     return item || items || attributes || remaining;
   }
 
