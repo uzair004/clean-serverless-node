@@ -482,17 +482,37 @@ function makeDb({ makeDbConnect, getTableName }) {
       }
     }
 
+    /**
+     * Returns a list of items matching the specified filter and limit
+     * @param {string} filter
+     * @param {number} limit
+     * @param {string} indexName
+     * @param {string} keyCond
+     * @param {object} attributeNames
+     * @param {object} attributeValues
+     * @param {boolean} validOnly
+     * @param {string} status
+     * @param {string} statusReason
+     * @returns {Promise<*>}
+     */
+
     const input = {
       TableName: getTableName(),
+      // If the limit is greater than 0, limit the number of results returned
       ...(limit > 0 && { Limit: limit }),
+      // Use the specified index
       IndexName: indexName,
+      // Filter the results by the specified key condition
       KeyConditionExpression: keyCond,
 
+      // If validOnly is true, add a filter expression for the expiry timestamp and status
       ...(validOnly && {
         ...(filterExp && { FilterExpression: filterExp }),
       }),
 
+      // Return all attributes
       Select: 'ALL_ATTRIBUTES',
+      // Add the specified attribute names
       ExpressionAttributeNames: {
         ...attributeNames,
         ...(validOnly && {
@@ -501,6 +521,7 @@ function makeDb({ makeDbConnect, getTableName }) {
           '#statusReason': 'statusReason',
         }),
       },
+      // Add the specified attribute values
       ExpressionAttributeValues: {
         ...attributeValues,
         ...(validOnly && {
@@ -509,6 +530,7 @@ function makeDb({ makeDbConnect, getTableName }) {
           ':statusReason': { S: statusReason },
         }),
       },
+      // Return the capacity used by the operation
       ReturnConsumedCapacity: 'TOTAL',
     };
 
