@@ -27,11 +27,10 @@ module.exports = {
     'no-await-in-loop': 'warn',
     'no-promise-executor-return': 'warn',
     'require-atomic-updates': 'warn',
-    'eslint max-nested-callbacks': ["error", 3],
-    'prefer-promise-reject-errors': 'warn',
-    'node/handle-callback-err': 'warn',
-    'node/no-sync': 'warn'
-
+    // 'eslint max-nested-callbacks': ["error", 3],
+    // 'prefer-promise-reject-errors': 'warn',
+    // 'node/handle-callback-err': 'warn',
+    // 'node/no-sync': 'warn'
   },
   ignorePatterns: [''],
 };
