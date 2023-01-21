@@ -1,0 +1,43 @@
+Resources:
+  MainTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: ${self:custom.dynamodb.MainTable}
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: PK1
+          AttributeType: S
+        - AttributeName: SK1
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: ${self:custom.dynamodb.MainTableGSI1}
+          KeySchema:
+            - AttributeName: PK1
+              KeyType: HASH
+            - AttributeName: SK1
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.s3.MediaBucket}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods:
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            AllowedHeaders:
+              - '*'
