@@ -7,9 +7,8 @@ const BaseDM = {
   SK: 'SK',
   type: 'type',
   version: 'version',
-  createTs: 'createTs',
-  lastAlterTs: 'lastAlterTs',
-  expiryTs: 'expiryTs',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
   status: 'status',
   statusReason: 'statusReason',
 };
@@ -23,16 +22,16 @@ const UserDM = {
   ...BaseDM,
   ...BaseGSI1DM,
   userId: 'userId',
+  profileImage: 'profileImage',
+  fullName: 'fullName',
+  email: 'email',
+  password: 'password',
 
   makeType: () => 'USER',
   makePK: (userId) => `U#${userId}`,
-  makeSK: (createdAt) => `D#${createdAt}`,
-  splitPK: (_PK) => _PK.split('#')[1],
-  splitSK: (_SK) => _SK.split('#')[1],
-  makePK1: (userId) => `U#${userId}`,
-  makeSK1: (regId) => `R#${regId}`,
-  splitPK1: (_PK1) => _PK1.split('#')[1],
-  splitSK1: (_SK1) => _SK1.split('#')[1],
+  makeSK: () => `A`,
+  splitPK: (_PK) => ({ userId: _PK.split('#')[1] }),
+  splitSK: () => undefined,
 };
 AllDM[UserDM.makeType()] = UserDM;
 Prefix[UserDM.makeType()] = 'U';
