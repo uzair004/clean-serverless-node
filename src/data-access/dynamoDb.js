@@ -558,6 +558,12 @@ function makeDb({ makeDbConnect, getTableName }) {
     return item.map((i) => splitKeys(i));
   }
 
+  /**
+   * This code is used to split the keys of a given item.
+   *
+   * @param item The item to split the keys of.
+   * @return The split keys of the given item.
+   */
   function splitKeys(item) {
     // If there is no item, return an empty item.
     if (item.length === 0) {
