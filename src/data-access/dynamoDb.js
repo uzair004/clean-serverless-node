@@ -377,6 +377,13 @@ function makeDb({ makeDbConnect, getTableName }) {
     return input;
   }
 
+  // This function creates an input object for the DynamoDB updateItem command.
+  // It takes the following parameters:
+  //    item: The item that will be updated
+  //    returnValues: Whether or not to return the updated item (default = false)
+  //    increments: An array of attributes that will be incremented (default = [])
+  // The function returns an object that can be passed to the DynamoDB updateItem command.
+
   function createUpdateItemInput({
     item: { PK: _PK, SK: _SK, ...itemInput },
     returnValues,
