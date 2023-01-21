@@ -296,6 +296,17 @@ function makeDb({ makeDbConnect, getTableName }) {
     return input;
   }
 
+  /**
+   * @description
+   * @param {Object} itemInfo
+   * @param {Object} itemInfo.PK
+   * @param {Object} itemInfo.SK
+   * @param {string} [operator='='] - one of =, >, >=, <, <=, begins_with, between
+   * @param {boolean} [validOnly=true]
+   * @param {string} [statusReason]
+   * @param {number} [limit]
+   * @returns {Object}
+   */
   function createQueryInput({
     itemInfo,
     operator = '=',
