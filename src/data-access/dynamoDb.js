@@ -435,6 +435,7 @@ function makeDb({ makeDbConnect, getTableName }) {
     limit,
     index = '1',
   }) {
+    // Define the names of the primary key attributes
     const _PK = 'PK' + index,
       _SK = 'SK' + index,
       _PKn = '#' + _PK,
@@ -443,26 +444,34 @@ function makeDb({ makeDbConnect, getTableName }) {
       _SKv = ':' + _SK,
       indexName = 'GSI' + index;
 
+    // Ensure the index is valid
     if (!['1', '2'].includes(index)) {
       throw new Error(`Index can only be '1' or '2'`);
     }
+
+    // Ensure the itemInfo contains the required attributes
     if (!itemInfo[_PK] || !itemInfo[_SK]) {
       throw new Error(
         `${indexName} requires attributes ({_PK${index}}, {_SK${index}}).`
       );
     }
+
+    // Ensure the operator is valid
     if (!['=', '>', '>=', '<', '<=', 'begins_with'].includes(operator)) {
       throw new Error('Invalid KeyConditionExpression operator');
     }
 
+    // Define the attribute names
     const attributeNames = {},
       attributeValues = {};
 
+    // Define the primary key attribute names
     attributeNames[_PKn] = _PK;
     attributeValues[_PKv] = { ...itemInfo[_PK] };
     attributeNames[_SKn] = _SK;
     attributeValues[_SKv] = { ...itemInfo[_SK] };
 
+    // Define the filter expression
     let filterExp = validOnly
       ? '(attribute_not_exists (#expiryTs) or #expiryTs > :expiryTs)'
       : '';
@@ -473,6 +482,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       filterExp += (filterExp ? ' and ' : '') + '#statusReason = :statusReason';
     }
 
+    // Define the key condition expression
     let keyCond = '#PK1 = :PK1 ';
     if (itemInfo.SK1) {
       if (operator === 'begins_with') {
