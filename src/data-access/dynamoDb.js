@@ -74,7 +74,9 @@ function makeDb({ makeDbConnect, getTableName }) {
     statusReason,
     validOnly = false,
   }) {
+    // Connect to the database
     const db = makeDbConnect();
+    // Create the query input
     const result = await db
       .query(
         createQueryInput({
@@ -87,6 +89,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       )
       .promise();
 
+    // Return the results
     return splitKeysArray(
       itemToObjectArray({
         item: removeMetrics({ result, fnName: 'query', itemInfo }),
