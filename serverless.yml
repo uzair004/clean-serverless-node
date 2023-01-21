@@ -1,35 +1,50 @@
-service: ${file(service.yml):service}
-app: ${file(service.yml):app}
-org: ${file(service.yml):org}
+#$file(service.yml)
+
+service: 'backend'
+# app and org for use with dashboard.serverless.com
+app: 'appName'
+org: 'orgName'
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
 frameworkVersion: '3'
 
 provider:
   name: aws
   runtime: nodejs14.x
-  lambdaHashingVersion: 20201221
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
   httpApi:
     cors: true
+  deploymentPrefix: meraid
+  deploymentBucket:
+    name: serverless-${self:custom.name}
+    blockPublicAccess: true
+    # skipPolicySetup: false
   # memorySize: 512
-  # versionFunctions: false
+  versionFunctions: false
 
   # Serverless defaults to "endpointType: edge". Use below to make it regional.
   #  endpointType: regional
 
-  iamRoleStatements:
-    - Effect: Allow
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:Query
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-      Resource:
-        - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}
-        - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}/index/${self:custom.dynamodb.MainTableGSI1}
+  # you can add statements to the Lambda function's IAM Role here
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}
+            - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}/index/${self:custom.dynamodb.MainTableGSI1}
+          # - arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/${self:custom.dynamodb.MainTable}/index/${self:custom.dynamodb.MainTableGSI2}
+
 
   environment:
     IS_OFFLINE: ${opt:IS_OFFLINE, false}
@@ -48,10 +63,25 @@ package:
 functions:
   helloWorld:
     handler: src/controllers/index.helloWorldC
+    middleware:
+      pre:
+        - src/middleware/index.jwtAuth
     events:
       - httpApi:
           method: any
           path: /v1/hello-world
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource: 'arn:aws:s3:::${self:custom.s3.MediaBucket}/*'
+        # '*' # TODO: later we should replace it with working ARN instead of a wildcard
+      - Effect: Allow # sendEmail permission
+        Action:
+          - 'ses:SendEmail'
+          - 'ses:SendRawEmail'
+        Resource: '*'
 
 plugins:
   - serverless-dynamodb-local
@@ -59,7 +89,59 @@ plugins:
   - serverless-pseudo-parameters
   - '@serverless/safeguards-plugin'
   - serverless-export-env
+  - serverless-middleware
+  - serverless-domain-manager
+  - serverless-iam-roles-per-function
+  - serverless-plugin-scripts
+  - serverless-deployment-bucket
+
+# for individual dev provide your initials in CLI arguments when deploying e.g. --STAGE=UJ * stage name shall be smaller alphabets
+# Do not change serverless.yml, and please do not commit.
+
+params:
+  default:
+    backendDomain: api-${sls:stage}.dev.${self:custom.domain}
+    frontendDomain: https://${sls:stage}.dev.${self:custom.domain}
+    certificateName: dev.${self:custom.domain}
+    region: 'us-east-1'
+    s3BucketName: ${self:custom.domain}-${sls:stage}-${param:region}-media
+    sourceEmail: no-reply@${param:certificateName}
+  dev:
+    backendDomain: api.dev.${self:custom.domain}
+    frontendDomain: https://dev.${self:custom.domain}
+    certificateName: dev.${self:custom.domain}
+    region: 'us-east-1'
+    s3BucketName: ${self:custom.domain}-dev-${param:region}-media
+    sourceEmail: no-reply@${param:certificateName}
+  # prod:
+  #   backendDomain: api.${self:custom.domain}
+  #   frontendDomain: https://${self:custom.domain}
+  #   certificateName: ${self:custom.domain}
+  #   region: 'eu-central-1'
+  #   s3BucketName: ${self:custom.domain}-${param:region}-media
+  #   sourceEmail: no-reply@${param:certificateName}
+  # staging:
+  #   frontendDomain: https://preview.${self:custom.domain}
+  #   backendDomain: api.preview.${self:custom.domain}
+  #   certificateName: preview.${self:custom.domain}
+  #   region: 'eu-central-1'
+  #   s3BucketName: ${self:custom.domain}-preview-${param:region}-media
+  #   sourceEmail: no-reply@${param:certificateName}
 custom:
+
+  # domain: myapp.pk
+  # name: ${self:app}-${self:service}-${sls:stage}
+
+  # customDomain:
+  #   domainName: ${param:backendDomain}
+  #   stage: ${sls:stage}
+  #   certificateName: ${param:certificateName}
+  #   createRoute53Record: true
+  #   createRoute53IPv6Record: true
+  #   endpointType: 'regional'
+  #   apiType: http
+  #   autoDomain: true
+
   dynamodb:
     MainTable: ${self:service}-${self:provider.stage}
     MainTableGSI1: GSI1
@@ -70,6 +152,17 @@ custom:
     start:
       dbPath: ./.dynamodb/data/
       migrate: true
+
+  s3:
+    MediaBucket: ${param:s3BucketName}
+
+  middleware:
+    folderName: src/.middleware
+    cleanFolder: true
+
+  scripts:
+    hooks:
+      'before:deploy:deploy': npm run lint
 
   export-env:
     filename: .env
