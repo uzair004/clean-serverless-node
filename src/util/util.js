@@ -1,5 +1,5 @@
 'use strict';
-const { randomBytes } = require('crypto');
+const { ulid } = require('ulid');
 
 function getApiInfo(event) {
   let splitPath;
@@ -9,8 +9,8 @@ function getApiInfo(event) {
     splitPath = event.rawPath.split('/'); // for http APIs
   }
   const apiInfo = {
-    apiCategory: splitPath[1],
-    apiVersion: splitPath[2],
+    apiVersion: splitPath[1],
+    apiCategory: splitPath[2],
     apiName: splitPath[3],
   };
   return apiInfo;
@@ -35,48 +35,15 @@ function getPath(event) {
   }
 }
 
-const makeMobileNo = (mobileNo) => {
-  let newPhone = mobileNo.replace(/[^0-9]/g, '');
-  if (newPhone.startsWith('92')) newPhone = '0' + newPhone.substr(2);
-  if (newPhone.startsWith('0092')) newPhone = '0' + newPhone.substr(4);
-  if (newPhone.length === 11) {
-    return newPhone;
-  } else {
-    return undefined;
-  }
-};
-
-const makeCNIC = (cnic) => {
-  const newCNIC = cnic.replace(/[^0-9]/g, '');
-  if (newCNIC.length === 13) {
-    return newCNIC;
-  } else {
-    return undefined;
-  }
-};
-
 function makeId() {
-  return randomBytes(16).toString('hex');
+  return ulid();
 }
 
-function makeTs(ts, getIso = true) {
-  let returnValue = new Date();
-  if (ts) {
-    // we now handle the case where the timestamp is a unix timestamp or ISO string
-    if (ts === parseInt(ts)) {
-      returnValue = new Date(parseInt(ts));
-    } else {
-      returnValue = new Date(ts);
-    }
-  }
-  if (getIso) {
-    return returnValue.toISOString();
-  } else {
-    return returnValue;
-  }
+function makeTs() {
+  return new Date().valueOf();
 }
 
-const isValueTrue = (value) => value === 'TRUE';
+const isValueTrue = (value) => value.toUpperCase() === 'TRUE';
 
 const titleCase = (str) => {
   return str
@@ -106,6 +73,148 @@ const unique = (array) => {
   return [...new Set(array)];
 };
 
+const createSuccessResponseHeaders = () => ({
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Methods': '*',
+  Accept: '*',
+});
+
+const missingItem = (item) => {
+  return {
+    response: {
+      statusCode: 400,
+      body: { message: `Missing ${item}` },
+    },
+  };
+};
+
+const head = (array) => {
+  if (array !== null && array.length) {
+    return array[0];
+  } else {
+    return undefined;
+  }
+};
+
+const isValidEmail = (email) => {
+  return String(email)
+    .toLowerCase()
+    .match(
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    );
+};
+
+const isValidPhone = (phone) => {
+  return String(phone).match(/^(03(0|1|2|3|4)\d{8})$/);
+};
+
+
+const obfuscateEmail = (email) => {
+  const regex = /(\w)(.+?)(@)(\w)(.*?)(.\w+$)/gm;
+  const subst = `$1***$3$4***$6`; // substitute with
+  return email.replace(regex, subst);
+};
+
+const getBackendUrl = () => {
+  const { IS_OFFLINE, BACKEND_API_URL } = process.env;
+
+  if (isValueTrue(IS_OFFLINE)) return 'http://localhost:3000';
+  else return `https://${BACKEND_API_URL}`;
+};
+
+const jsonToCsv = (
+  json,
+  quote = `"`,
+  valDelimiter = ',',
+  lineDelimiter = '\n'
+) => {
+  if (!json || Object.keys(json).length === 0) return '';
+
+  const quoDel = quote.concat(valDelimiter, quote);
+
+  const csv = `${quote}${Object.keys(json[0]).join(
+    quoDel
+  )}${quote}${lineDelimiter}${json
+    .map((object) => quote.concat(Object.values(object).join(quoDel)))
+    .join(quote.concat(lineDelimiter))}${quote}`;
+
+  return csv;
+};
+
+const csvToJson = (csv) => {
+  let lines;
+  if (csv.match('\r\n')) {
+    lines = csv.split('\r\n');
+  } else if (csv.match('\n')) {
+    lines = csv.split('\n');
+  } else {
+    lines = csv;
+  }
+  const result = [];
+  const headersString = lines[0];
+
+  let splitIndex = 0;
+  const regex = /cnic|userId/i;
+  if (regex.test(headersString)) {
+    splitIndex = 1; // header do exist, so skip it
+  }
+  const linesWithoutHeader = lines.slice(splitIndex);
+
+  const headers = headersString.split(',');
+
+  linesWithoutHeader.map((line) => {
+    const obj = {};
+    const currentline = line.split(',');
+    headers.map((header, index) => {
+      obj['userId'] = currentline[index];
+    });
+    // obj["userId"] = line; // can be used to avoid headers.map
+
+    result.push(obj);
+  });
+
+  return result;
+};
+
+function replaceChar(obj, { toReplace, replaceBy }) {
+  const newObj = {};
+
+  Object.entries(obj).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      newObj[key] = value.replace(toReplace, replaceBy);
+    } else {
+      newObj[key] = value;
+    }
+  });
+
+  return newObj;
+}
+
+function replaceUndefined(obj) {
+  const newObj = {};
+
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value === undefined) {
+      newObj[key] = '';
+    } else {
+      newObj[key] = value;
+    }
+  });
+
+  return newObj;
+}
+
+// Note: Following functions return a set.
+function union(a, b) {
+  return new Set([...a, ...b]);
+}
+
+function minus(a, b) {
+  return new Set(Array.from(a).filter((x) => !b.has(x)));
+}
+
+
 module.exports = {
   getApiInfo,
   getRemoteIp,
@@ -118,4 +227,17 @@ module.exports = {
   getAuthorizationToken,
   unique,
   getPath,
+  createSuccessResponseHeaders,
+  missingItem,
+  head,
+  isValidEmail,
+  isValidPhone,
+  obfuscateEmail,
+  getBackendUrl,
+  jsonToCsv,
+  replaceChar,
+  csvToJson,
+  replaceUndefined,
+  union,
+  minus,
 };
