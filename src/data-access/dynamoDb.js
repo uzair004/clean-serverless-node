@@ -255,18 +255,30 @@ function makeDb({ makeDbConnect, getTableName }) {
     return response;
   }
 
+  // This function is used to convert a DynamoDB value to a Javascript value
+  // It is used in the following functions:
+  //  - get
+  //  - getBatch
+  //  - scan
+  //  - query
+  //  - update
+  //  - updateBatch
+
   function itemToValue({ item, dataType }) {
     let response;
     switch (dataType) {
       case 'N':
+        // If the DynamoDB value is a number, convert it to a Javascript number
         return parseInt(item[dataType]);
       case 'L':
+        // If the DynamoDB value is a list, convert it to a Javascript array
         response = [];
         item[dataType].forEach((item) =>
           response.push(itemToValue({ item, dataType: Object.keys(item)[0] }))
         );
         return response;
       case 'M':
+        // If the DynamoDB value is a map, convert it to a Javascript object
         response = {};
         Object.keys(item[dataType]).forEach((i) => {
           response[i] = itemToValue({
@@ -276,6 +288,7 @@ function makeDb({ makeDbConnect, getTableName }) {
         });
         return response;
       default:
+        // If the DynamoDB value is a string, binary, boolean, or null, return the value as is
         return item[dataType];
     }
   }
