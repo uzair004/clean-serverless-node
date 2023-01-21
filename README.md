@@ -1,6 +1,6 @@
 ## Pre requisites
 
-- Node 14.x.x
+- Node v16.13.1
 - Serverless Framework - 3.x.x - Sign up to serverless.com and install serverless globally: npm i serverless -g
 
 ## Serverless Framework
