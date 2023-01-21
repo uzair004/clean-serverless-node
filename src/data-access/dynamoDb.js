@@ -549,10 +549,12 @@ function makeDb({ makeDbConnect, getTableName }) {
   }
 
   function splitKeys(item) {
+    // If there is no item, return an empty item.
     if (item.length === 0) {
       return item;
     }
 
+    // Split the keys for each type of item.
     const {
       PK: _PK,
       SK: _SK,
@@ -564,6 +566,7 @@ function makeDb({ makeDbConnect, getTableName }) {
       ...resultInfo
     } = item;
 
+    // Return an object that contains the split keys and the result info.
     return Object.assign(
       !_PK ? {} : DM[_type].splitPK(_PK),
       !_SK ? {} : DM[_type].splitSK(_SK),
