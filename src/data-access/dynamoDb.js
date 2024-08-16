@@ -23,7 +23,7 @@ function makeDb({ makeDbConnect, getTableName }) {
     const item = objectToItem({ itemInfo });
 
     // Create the input object for DynamoDB.
-    const input = createPutItemInput({ item });
+    const input = createPutItemInput(item);
 
     // Put the item in the database.
     const result = await db.putItem(input).promise();
